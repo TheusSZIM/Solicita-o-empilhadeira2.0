@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FleetControl Pro | Painel de Operações</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300 ;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
         
         :root {
             --primary: #0f172a;
@@ -648,7 +648,7 @@
                         
                         <div class="form-link-container">
                             <!-- ✅ BOTÃO PRINCIPAL - LINK CORRIGIDO -->
-                            <a href="https://docs.google.com/forms/d/e/1FAIpQLSePgmEk_1wSz9estUD49XRNyBGOufB5zacWu67vbTFkRO8IZg/viewform" 
+                            <a href="https://docs.google.com/forms/d/e/1FAIpQLSePgmEk_1wSz9estUD49XRNyBGOufB5zacWu67vbTFkRO8IZg/viewform " 
                                target="_blank" 
                                class="btn-link">
                                 <span>🚀</span>
@@ -657,7 +657,7 @@
                             
                             <div class="link-direto">
                                 <strong>Link direto:</strong><br>
-                                https://docs.google.com/forms/d/e/1FAIpQLSePgmEk_1wSz9estUD49XRNyBGOufB5zacWu67vbTFkRO8IZg/viewform
+                                https://docs.google.com/forms/d/e/1FAIpQLSePgmEk_1wSz9estUD49XRNyBGOufB5zacWu67vbTFkRO8IZg/viewform 
                             </div>
                         </div>
                     </div>
@@ -754,13 +754,18 @@
 
     <script>
         // CONFIGURAÇÕES
-        const API_URL = 'https://script.google.com/macros/s/AKfycbw19miaBO5m284EgvhDDwvqCq7Hgsus1q8h979Lc8PKmB58vPAPSb3-ou0xEfPRziXM/exec';
+        const API_URL = 'https://script.google.com/macros/s/AKfycbz1LGRGk-Cs3xFH2tVundskVU5YH8dD9hzgQamyJMYyJID7osb4QXlb00nKqbRGLWFV/exec';
         
         let currentView = 'solicitante';
         let currentFilter = 'all';
         let allRequests = [];
         let timers = {};
         let isOnline = false;
+
+        // ✅ FUNÇÃO AUXILIAR PARA CONVERSÃO SEGURA PARA STRING
+        function safeString(value) {
+            return String(value || '');
+        }
 
         function switchView(view) {
             currentView = view;
@@ -913,8 +918,9 @@
 
             const config = statusConfig[req.status] || statusConfig['Pendente'];
             
-            const isUrgent = (req.observacao || '').toLowerCase().includes('urgente') || 
-                           (req.tipoOperacao || '').toLowerCase().includes('urgente');
+            // ✅ CORREÇÃO: Usando safeString() para garantir conversão para string
+            const isUrgent = safeString(req.observacao).toLowerCase().includes('urgente') || 
+                           safeString(req.tipoOperacao).toLowerCase().includes('urgente');
 
             let actionBtn = '';
             if (req.status === 'Pendente') {
