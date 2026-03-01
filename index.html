@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FleetControl | Integrado ao Google Forms</title>
+    <title>FleetControl Pro | Painel de Operações</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
         
@@ -189,11 +189,11 @@
 
         .view {
             display: none;
+            animation: fadeIn 0.5s;
         }
 
         .view.active {
             display: block;
-            animation: fadeIn 0.5s;
         }
 
         @keyframes fadeIn {
@@ -201,6 +201,7 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
+        /* Info Panel */
         .info-panel {
             background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
             border: 1px solid #93c5fd;
@@ -252,6 +253,7 @@
             box-shadow: var(--shadow-lg);
         }
 
+        /* Stats */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -306,6 +308,7 @@
             font-weight: 500;
         }
 
+        /* Filters */
         .filter-tabs {
             display: flex;
             gap: 0.5rem;
@@ -335,6 +338,7 @@
             color: white;
         }
 
+        /* Request Cards */
         .requests-list {
             display: flex;
             flex-direction: column;
@@ -353,6 +357,12 @@
             transition: all 0.3s;
             position: relative;
             overflow: hidden;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
         }
 
         .request-card::before {
@@ -543,12 +553,12 @@
             box-shadow: var(--shadow-lg);
             font-weight: 500;
             z-index: 1000;
-            animation: slideIn 0.3s;
+            animation: slideInRight 0.3s;
         }
 
-        @keyframes slideIn {
-            from { transform: translateX(100%); }
-            to { transform: translateX(0); }
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
 
         .error-box {
@@ -585,7 +595,7 @@
             .view-toggle { display: flex; }
             .request-card { grid-template-columns: 1fr; }
             .card-actions { flex-direction: row; }
-            .page-header { flex-direction: column; align-items: flex-start; }
+            .btn { flex: 1; }
         }
     </style>
 </head>
@@ -596,13 +606,13 @@
                 <div class="logo">⚡</div>
                 <div>
                     <h1 style="font-size: 1.25rem; font-weight: 700;">FleetControl</h1>
-                    <p style="font-size: 0.75rem; opacity: 0.7;">Google Forms Edition</p>
+                    <p style="font-size: 0.75rem; opacity: 0.7;">Pro Edition</p>
                 </div>
             </div>
 
             <div class="connection-status">
                 <div class="status-dot" id="statusDot"></div>
-                <span id="statusText">Verificando conexão...</span>
+                <span id="statusText">Conectando...</span>
             </div>
 
             <div class="nav-section">
@@ -632,8 +642,8 @@
                     <div class="info-icon">📋</div>
                     <div class="info-content">
                         <h3>Formulário Google Forms</h3>
-                        <p>Clique no botão abaixo para abrir o formulário. Após enviar, a solicitação aparecerá no Painel do Operador.</p>
-                        <a href="#" id="formLink" target="_blank" class="btn-link">
+                        <p>Clique no botão abaixo para abrir o formulário. Após enviar, a solicitação aparecerá automaticamente no Painel do Operador.</p>
+                        <a href="https://docs.google.com/forms/d/e/SEU_FORM_ID/viewform" target="_blank" class="btn-link">
                             <span>🚀</span>
                             Abrir Formulário
                         </a>
@@ -670,7 +680,7 @@
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">Painel do Operador</h1>
-                        <p style="color: var(--text-light);">Gerencie as solicitações</p>
+                        <p style="color: var(--text-light);">Gerencie as solicitações em tempo real</p>
                     </div>
                     <div class="sync-badge" onclick="manualRefresh()">
                         <span id="syncIcon">🔄</span>
@@ -730,20 +740,14 @@
     <button class="view-toggle" onclick="toggleSidebar()">☰</button>
 
     <script>
-        // ⚠️ CONFIGURAÇÃO: Substitua pela URL do seu Apps Script (termina em /exec)
-        const API_URL = 'https://script.google.com/macros/s/AKfycbyiNygFjfHfABfn0aWFxn0_IHJyYyg9Yrsb_frBdYuwwLDZXJRHUBG4pICt5fFyQ6M/exec';
-        
-        // Substitua pelo link do seu formulário Google Forms
-        const FORM_URL = 'https://docs.google.com/forms/d/e/SEU_FORM_ID/viewform';
+        // ✅ SUA URL DO GOOGLE APPS SCRIPT
+        const API_URL = 'https://script.google.com/macros/s/AKfycbyB_VzBx4m0ZlHXIll3j3y5VsfzKzwAt7gkBMXSdxWaSCbQ_xNymcTDc1D7k6L4lPlK/exec';
         
         let currentView = 'solicitante';
         let currentFilter = 'all';
         let allRequests = [];
         let timers = {};
         let isOnline = false;
-
-        // Configurar link do formulário
-        document.getElementById('formLink').href = FORM_URL;
 
         function switchView(view) {
             currentView = view;
@@ -760,43 +764,43 @@
             document.getElementById('sidebar').classList.toggle('open');
         }
 
-        // Função de API com tratamento de erro robusto
-        async function apiRequest(action, data = null) {
-            const url = new URL(API_URL);
-            
-            // Sempre usar GET para evitar problemas CORS/POST
-            url.searchParams.append('action', action);
-            
-            if (data) {
-                // Adicionar dados como parâmetros GET
-                Object.keys(data).forEach(key => {
-                    url.searchParams.append(key, data[key]);
+        // API com JSONP (contorna CORS)
+        function apiRequest(action, data = {}) {
+            return new Promise((resolve, reject) => {
+                const callbackName = 'cb_' + Date.now();
+                const script = document.createElement('script');
+                
+                // Montar URL com parâmetros
+                const params = new URLSearchParams({
+                    action: action,
+                    callback: callbackName,
+                    ...data
                 });
-            }
-            
-            try {
-                const response = await fetch(url, {
-                    method: 'GET',
-                    mode: 'cors',
-                    cache: 'no-cache',
-                    headers: {
-                        'Accept': 'application/json',
+                
+                window[callbackName] = function(response) {
+                    delete window[callbackName];
+                    if (script.parentNode) document.head.removeChild(script);
+                    resolve(response);
+                };
+                
+                script.onerror = () => {
+                    delete window[callbackName];
+                    if (script.parentNode) document.head.removeChild(script);
+                    reject(new Error('Falha na requisição'));
+                };
+                
+                // Timeout de segurança
+                setTimeout(() => {
+                    if (window[callbackName]) {
+                        delete window[callbackName];
+                        if (script.parentNode) document.head.removeChild(script);
+                        reject(new Error('Timeout'));
                     }
-                });
+                }, 10000);
                 
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const result = await response.json();
-                updateStatus(true);
-                return result;
-                
-            } catch (error) {
-                console.error('API Error:', error);
-                updateStatus(false);
-                throw error;
-            }
+                script.src = API_URL + '?' + params.toString();
+                document.head.appendChild(script);
+            });
         }
 
         function updateStatus(online) {
@@ -817,8 +821,7 @@
             const container = document.getElementById('errorContainer');
             container.innerHTML = `
                 <div class="error-box">
-                    <strong>⚠️ Erro:</strong> ${message}<br>
-                    <small>Verifique se a URL do Apps Script está correta e se a implantação está ativa.</small>
+                    <strong>⚠️ Erro:</strong> ${message}
                 </div>
             `;
         }
@@ -843,37 +846,22 @@
                     updateStatus(true);
                     
                     // Atualizar preview na tela de solicitante
-                    updatePreviewStats();
+                    document.getElementById('form-pending').textContent = 
+                        allRequests.filter(r => r.status === 'Pendente').length || '0';
+                    document.getElementById('form-progress').textContent = 
+                        allRequests.filter(r => r.status === 'Em Andamento').length || '0';
+                    document.getElementById('form-completed').textContent = 
+                        allRequests.filter(r => r.status === 'Concluído').length || '0';
                 } else {
                     throw new Error(result.error || 'Erro desconhecido');
                 }
             } catch (error) {
-                showError('Não foi possível conectar ao Google Sheets. ' + error.message);
-                document.getElementById('requests-list').innerHTML = `
-                    <div class="empty-state">
-                        <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
-                        <h3>Erro de conexão</h3>
-                        <p style="color: var(--text-light); margin: 1rem 0;">
-                            Verifique a configuração da API no código.
-                        </p>
-                        <button onclick="loadRequests()" class="btn btn-primary" style="width: auto;">
-                            🔄 Tentar Novamente
-                        </button>
-                    </div>
-                `;
+                showError('Não foi possível conectar: ' + error.message);
+                updateStatus(false);
             } finally {
                 syncIcon.classList.remove('syncing');
                 document.getElementById('syncText').textContent = 'Atualizar';
             }
-        }
-
-        function updatePreviewStats() {
-            document.getElementById('form-pending').textContent = 
-                allRequests.filter(r => r.status === 'Pendente').length || '0';
-            document.getElementById('form-progress').textContent = 
-                allRequests.filter(r => r.status === 'Em Andamento').length || '0';
-            document.getElementById('form-completed').textContent = 
-                allRequests.filter(r => r.status === 'Concluído').length || '0';
         }
 
         function renderRequests() {
@@ -965,7 +953,7 @@
                     throw new Error(result.error);
                 }
             } catch (error) {
-                showToast('✗ Erro ao iniciar: ' + error.message);
+                showToast('✗ Erro: ' + error.message);
             }
         }
 
@@ -983,13 +971,12 @@
                     throw new Error(result.error);
                 }
             } catch (error) {
-                showToast('✗ Erro ao finalizar: ' + error.message);
+                showToast('✗ Erro: ' + error.message);
             }
         }
 
         function startTimer(id, startTimeStr) {
             try {
-                // Parse do formato brasileiro: dd/MM/yyyy HH:mm:ss
                 const parts = startTimeStr.split(/[/ :]/);
                 if (parts.length < 6) return;
                 
@@ -1044,22 +1031,16 @@
             setTimeout(() => toast.remove(), 3000);
         }
 
-        // Auto-refresh quando a aba está visível
+        // Auto-refresh
         setInterval(() => {
             if (currentView === 'operador' && document.visibilityState === 'visible' && isOnline) {
                 loadRequests();
             }
-        }, 30000); // A cada 30 segundos
+        }, 30000);
 
         // Inicialização
         window.addEventListener('load', () => {
-            // Verificar se a URL foi configurada
-            if (API_URL.includes('AKfycbzxxxxxxxx')) {
-                showError('⚠️ Você precisa configurar a URL do Apps Script no código (linha 425)');
-                updateStatus(false);
-            } else {
-                loadRequests();
-            }
+            loadRequests();
         });
     </script>
 </body>
