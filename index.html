@@ -246,11 +246,15 @@
             font-weight: 600;
             margin-top: 1rem;
             transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
         }
 
         .btn-link:hover {
             transform: translateY(-2px);
             box-shadow: var(--shadow-lg);
+            background: #1e293b;
         }
 
         /* Stats */
@@ -588,6 +592,26 @@
             height: 60px;
         }
 
+        /* Direct Form Link - Garante que o formulário abra */
+        .direct-form-link {
+            display: block;
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f0f9ff;
+            border: 2px solid #0ea5e9;
+            border-radius: 8px;
+            color: #0369a1;
+            text-decoration: none;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .direct-form-link:hover {
+            background: #0ea5e9;
+            color: white;
+        }
+
         @media (max-width: 1024px) {
             .sidebar { transform: translateX(-100%); }
             .sidebar.open { transform: translateX(0); }
@@ -643,10 +667,19 @@
                     <div class="info-content">
                         <h3>Formulário Google Forms</h3>
                         <p>Clique no botão abaixo para abrir o formulário. Após enviar, a solicitação aparecerá automaticamente no Painel do Operador.</p>
-                        <!-- ✅ LINK DO FORMULÁRIO CONFIGURADO -->
-                        <a href="https://docs.google.com/forms/d/e/1FAIpQLSePgmEk_1wSz9estUD49XRNyBGOUfB5zacWu67vbTFkRO8IZg/viewform" target="_blank" class="btn-link">
+                        
+                        <!-- BOTÃO PRINCIPAL -->
+                        <button onclick="abrirFormulario()" class="btn-link">
                             <span>🚀</span>
                             Abrir Formulário
+                        </button>
+                        
+                        <!-- LINK DIRETO DE BACKUP -->
+                        <a href="https://docs.google.com/forms/d/e/1FAIpQLSePgmEk_1wSz9estUD49XRNyBGOUfB5zacWu67vbTFkRO8IZg/viewform" 
+                           target="_blank" 
+                           class="direct-form-link"
+                           onclick="event.stopPropagation();">
+                            📝 Ou clique aqui para abrir o formulário diretamente
                         </a>
                     </div>
                 </div>
@@ -741,14 +774,31 @@
     <button class="view-toggle" onclick="toggleSidebar()">☰</button>
 
     <script>
-        // ✅ SUA URL DO GOOGLE APPS SCRIPT (JÁ CONFIGURADA)
+        // CONFIGURAÇÕES
         const API_URL = 'https://script.google.com/macros/s/AKfycbw19miaBO5m284EgvhDDwvqCq7Hgsus1q8h979Lc8PKmB58vPAPSb3-ou0xEfPRziXM/exec';
+        const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSePgmEk_1wSz9estUD49XRNyBGOUfB5zacWu67vbTFkRO8IZg/viewform';
         
         let currentView = 'solicitante';
         let currentFilter = 'all';
         let allRequests = [];
         let timers = {};
         let isOnline = false;
+
+        // FUNÇÃO PARA ABRIR FORMULÁRIO - GARANTIDA
+        function abrirFormulario() {
+            console.log('Abrindo formulário:', FORM_URL);
+            
+            // Método 1: window.open
+            const newWindow = window.open(FORM_URL, '_blank', 'noopener,noreferrer');
+            
+            // Se popup bloqueado, tentar location
+            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+                console.log('Popup bloqueado, usando location.href');
+                window.location.href = FORM_URL;
+            }
+            
+            showToast('📝 Abrindo formulário...');
+        }
 
         function switchView(view) {
             currentView = view;
@@ -765,13 +815,12 @@
             document.getElementById('sidebar').classList.toggle('open');
         }
 
-        // API com JSONP (contorna CORS)
+        // API com JSONP
         function apiRequest(action, data = {}) {
             return new Promise((resolve, reject) => {
                 const callbackName = 'cb_' + Date.now();
                 const script = document.createElement('script');
                 
-                // Montar URL com parâmetros
                 const params = new URLSearchParams({
                     action: action,
                     callback: callbackName,
@@ -790,7 +839,6 @@
                     reject(new Error('Falha na requisição'));
                 };
                 
-                // Timeout de segurança
                 setTimeout(() => {
                     if (window[callbackName]) {
                         delete window[callbackName];
@@ -887,7 +935,6 @@
 
             container.innerHTML = filtered.map(req => createCard(req)).join('');
             
-            // Restaurar timers
             filtered.forEach(req => {
                 if (req.status === 'Em Andamento' && req.tempoInicio) {
                     startTimer(req.id, req.tempoInicio);
@@ -1041,6 +1088,7 @@
 
         // Inicialização
         window.addEventListener('load', () => {
+            console.log('Página carregada. FORM_URL:', FORM_URL);
             loadRequests();
         });
     </script>
