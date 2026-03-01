@@ -208,53 +208,52 @@
             border-radius: 16px;
             padding: 1.5rem;
             margin-bottom: 2rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .info-icon {
-            width: 48px;
-            height: 48px;
-            background: white;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
         }
 
         .info-content h3 {
             color: #1e40af;
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.5rem;
         }
 
         .info-content p {
             color: #3b82f6;
             font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-link-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
         }
 
         .btn-link {
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 0.5rem;
-            padding: 0.75rem 1.5rem;
+            padding: 1rem 2rem;
             background: var(--primary);
             color: white;
             text-decoration: none;
-            border-radius: 8px;
+            border-radius: 10px;
             font-weight: 600;
-            margin-top: 1rem;
+            font-size: 1.1rem;
             transition: all 0.3s;
             border: none;
             cursor: pointer;
-            font-size: 1rem;
         }
 
         .btn-link:hover {
             transform: translateY(-2px);
             box-shadow: var(--shadow-lg);
             background: #1e293b;
+        }
+
+        .link-direto {
+            color: #1e40af;
+            font-size: 0.875rem;
+            word-break: break-all;
         }
 
         /* Stats */
@@ -592,26 +591,6 @@
             height: 60px;
         }
 
-        /* Direct Form Link - Garante que o formulário abra */
-        .direct-form-link {
-            display: block;
-            margin-top: 1rem;
-            padding: 1rem;
-            background: #f0f9ff;
-            border: 2px solid #0ea5e9;
-            border-radius: 8px;
-            color: #0369a1;
-            text-decoration: none;
-            font-weight: 600;
-            text-align: center;
-            transition: all 0.3s;
-        }
-
-        .direct-form-link:hover {
-            background: #0ea5e9;
-            color: white;
-        }
-
         @media (max-width: 1024px) {
             .sidebar { transform: translateX(-100%); }
             .sidebar.open { transform: translateX(0); }
@@ -658,29 +637,29 @@
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">Nova Solicitação</h1>
-                        <p style="color: var(--text-light);">Acesse o formulário Google Forms</p>
+                        <p style="color: var(--text-light);">Preencha o formulário Google Forms</p>
                     </div>
                 </div>
 
                 <div class="info-panel">
-                    <div class="info-icon">📋</div>
                     <div class="info-content">
-                        <h3>Formulário Google Forms</h3>
-                        <p>Clique no botão abaixo para abrir o formulário. Após enviar, a solicitação aparecerá automaticamente no Painel do Operador.</p>
+                        <h3>📋 Formulário de Solicitação</h3>
+                        <p>Clique no botão abaixo para abrir o formulário. Após enviar, volte ao Painel do Operador para acompanhar o status.</p>
                         
-                        <!-- BOTÃO PRINCIPAL -->
-                        <button onclick="abrirFormulario()" class="btn-link">
-                            <span>🚀</span>
-                            Abrir Formulário
-                        </button>
-                        
-                        <!-- LINK DIRETO DE BACKUP -->
-                        <a href="https://docs.google.com/forms/d/e/1FAIpQLSePgmEk_1wSz9estUD49XRNyBGOUfB5zacWu67vbTFkRO8IZg/viewform" 
-                           target="_blank" 
-                           class="direct-form-link"
-                           onclick="event.stopPropagation();">
-                            📝 Ou clique aqui para abrir o formulário diretamente
-                        </a>
+                        <div class="form-link-container">
+                            <!-- ✅ BOTÃO PRINCIPAL - LINK CORRIGIDO -->
+                            <a href="https://docs.google.com/forms/d/e/1FAIpQLSePgmEk_1wSz9estUD49XRNyBGOufB5zacWu67vbTFkRO8IZg/viewform" 
+                               target="_blank" 
+                               class="btn-link">
+                                <span>🚀</span>
+                                Abrir Formulário
+                            </a>
+                            
+                            <div class="link-direto">
+                                <strong>Link direto:</strong><br>
+                                https://docs.google.com/forms/d/e/1FAIpQLSePgmEk_1wSz9estUD49XRNyBGOufB5zacWu67vbTFkRO8IZg/viewform
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -776,29 +755,12 @@
     <script>
         // CONFIGURAÇÕES
         const API_URL = 'https://script.google.com/macros/s/AKfycbw19miaBO5m284EgvhDDwvqCq7Hgsus1q8h979Lc8PKmB58vPAPSb3-ou0xEfPRziXM/exec';
-        const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSePgmEk_1wSz9estUD49XRNyBGOUfB5zacWu67vbTFkRO8IZg/viewform';
         
         let currentView = 'solicitante';
         let currentFilter = 'all';
         let allRequests = [];
         let timers = {};
         let isOnline = false;
-
-        // FUNÇÃO PARA ABRIR FORMULÁRIO - GARANTIDA
-        function abrirFormulario() {
-            console.log('Abrindo formulário:', FORM_URL);
-            
-            // Método 1: window.open
-            const newWindow = window.open(FORM_URL, '_blank', 'noopener,noreferrer');
-            
-            // Se popup bloqueado, tentar location
-            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                console.log('Popup bloqueado, usando location.href');
-                window.location.href = FORM_URL;
-            }
-            
-            showToast('📝 Abrindo formulário...');
-        }
 
         function switchView(view) {
             currentView = view;
@@ -1088,7 +1050,6 @@
 
         // Inicialização
         window.addEventListener('load', () => {
-            console.log('Página carregada. FORM_URL:', FORM_URL);
             loadRequests();
         });
     </script>
