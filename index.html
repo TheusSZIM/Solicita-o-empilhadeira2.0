@@ -46,6 +46,7 @@
             position: fixed;
             height: 100vh;
             z-index: 100;
+            transition: transform 0.3s;
         }
 
         .brand {
@@ -148,6 +149,8 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
 
         .page-title {
@@ -166,6 +169,13 @@
             border: 1px solid var(--border);
             font-size: 0.875rem;
             color: var(--text-light);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .sync-badge:hover {
+            background: var(--bg);
+            transform: translateY(-2px);
         }
 
         .syncing {
@@ -191,7 +201,6 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Info Panel */
         .info-panel {
             background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
             border: 1px solid #93c5fd;
@@ -243,7 +252,6 @@
             box-shadow: var(--shadow-lg);
         }
 
-        /* Stats */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -298,7 +306,6 @@
             font-weight: 500;
         }
 
-        /* Filters */
         .filter-tabs {
             display: flex;
             gap: 0.5rem;
@@ -308,6 +315,7 @@
             border-radius: 8px;
             border: 1px solid var(--border);
             width: fit-content;
+            flex-wrap: wrap;
         }
 
         .tab {
@@ -327,7 +335,6 @@
             color: white;
         }
 
-        /* Request Cards */
         .requests-list {
             display: flex;
             flex-direction: column;
@@ -525,7 +532,6 @@
             100% { background-position: -200% 0; }
         }
 
-        /* Toast */
         .toast {
             position: fixed;
             bottom: 2rem;
@@ -543,6 +549,15 @@
         @keyframes slideIn {
             from { transform: translateX(100%); }
             to { transform: translateX(0); }
+        }
+
+        .error-box {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border: 1px solid #fecaca;
         }
 
         .view-toggle {
@@ -564,12 +579,13 @@
         }
 
         @media (max-width: 1024px) {
-            .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
+            .sidebar { transform: translateX(-100%); }
             .sidebar.open { transform: translateX(0); }
             .main-content { margin-left: 0; }
             .view-toggle { display: flex; }
             .request-card { grid-template-columns: 1fr; }
             .card-actions { flex-direction: row; }
+            .page-header { flex-direction: column; align-items: flex-start; }
         }
     </style>
 </head>
@@ -586,7 +602,7 @@
 
             <div class="connection-status">
                 <div class="status-dot" id="statusDot"></div>
-                <span id="statusText">Sincronizado com Planilha</span>
+                <span id="statusText">Verificando conexão...</span>
             </div>
 
             <div class="nav-section">
@@ -608,7 +624,7 @@
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">Nova Solicitação</h1>
-                        <p style="color: var(--text-light);">Preencha o formulário Google Forms</p>
+                        <p style="color: var(--text-light);">Acesse o formulário Google Forms</p>
                     </div>
                 </div>
 
@@ -616,8 +632,8 @@
                     <div class="info-icon">📋</div>
                     <div class="info-content">
                         <h3>Formulário Google Forms</h3>
-                        <p>Clique no botão abaixo para abrir o formulário oficial. Após enviar, a solicitação aparecerá automaticamente no Painel do Operador.</p>
-                        <a href="https://docs.google.com/forms/d/e/SEU_FORM_ID/viewform" target="_blank" class="btn-link">
+                        <p>Clique no botão abaixo para abrir o formulário. Após enviar, a solicitação aparecerá no Painel do Operador.</p>
+                        <a href="#" id="formLink" target="_blank" class="btn-link">
                             <span>🚀</span>
                             Abrir Formulário
                         </a>
@@ -654,13 +670,15 @@
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">Painel do Operador</h1>
-                        <p style="color: var(--text-light);">Gerencie as solicitações do Google Forms</p>
+                        <p style="color: var(--text-light);">Gerencie as solicitações</p>
                     </div>
-                    <div class="sync-badge">
+                    <div class="sync-badge" onclick="manualRefresh()">
                         <span id="syncIcon">🔄</span>
-                        <span id="syncText">Sincronizando...</span>
+                        <span id="syncText">Atualizar</span>
                     </div>
                 </div>
+
+                <div id="errorContainer"></div>
 
                 <div class="stats-grid">
                     <div class="stat-card">
@@ -712,13 +730,20 @@
     <button class="view-toggle" onclick="toggleSidebar()">☰</button>
 
     <script>
-        // ⚠️ CONFIGURAÇÃO: Cole aqui a URL do seu Apps Script
-        const API_URL = 'https://script.google.com/macros/s/AKfycbyvv0MiTWqWRqLhkJ2ILGi-sJd5FFIcfZ0enUW8qTXcuz1Bz2KPLRlV3fvr7VK5LXI/exec';
+        // ⚠️ CONFIGURAÇÃO: Substitua pela URL do seu Apps Script (termina em /exec)
+        const API_URL = 'https://script.google.com/macros/s/AKfycbyiNygFjfHfABfn0aWFxn0_IHJyYyg9Yrsb_frBdYuwwLDZXJRHUBG4pICt5fFyQ6M/exec';
+        
+        // Substitua pelo link do seu formulário Google Forms
+        const FORM_URL = 'https://docs.google.com/forms/d/e/SEU_FORM_ID/viewform';
         
         let currentView = 'solicitante';
         let currentFilter = 'all';
         let allRequests = [];
         let timers = {};
+        let isOnline = false;
+
+        // Configurar link do formulário
+        document.getElementById('formLink').href = FORM_URL;
 
         function switchView(view) {
             currentView = view;
@@ -735,20 +760,37 @@
             document.getElementById('sidebar').classList.toggle('open');
         }
 
+        // Função de API com tratamento de erro robusto
         async function apiRequest(action, data = null) {
+            const url = new URL(API_URL);
+            
+            // Sempre usar GET para evitar problemas CORS/POST
+            url.searchParams.append('action', action);
+            
+            if (data) {
+                // Adicionar dados como parâmetros GET
+                Object.keys(data).forEach(key => {
+                    url.searchParams.append(key, data[key]);
+                });
+            }
+            
             try {
-                const url = new URL(API_URL);
-                url.searchParams.append('action', action);
+                const response = await fetch(url, {
+                    method: 'GET',
+                    mode: 'cors',
+                    cache: 'no-cache',
+                    headers: {
+                        'Accept': 'application/json',
+                    }
+                });
                 
-                const options = {
-                    method: data ? 'POST' : 'GET',
-                    headers: { 'Content-Type': 'application/json' }
-                };
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
                 
-                if (data) options.body = JSON.stringify(data);
-
-                const response = await fetch(url, options);
-                return await response.json();
+                const result = await response.json();
+                updateStatus(true);
+                return result;
                 
             } catch (error) {
                 console.error('API Error:', error);
@@ -758,45 +800,80 @@
         }
 
         function updateStatus(online) {
+            isOnline = online;
             const dot = document.getElementById('statusDot');
             const text = document.getElementById('statusText');
             
             if (online) {
                 dot.classList.remove('offline');
-                text.textContent = 'Sincronizado com Planilha';
+                text.textContent = 'Conectado';
             } else {
                 dot.classList.add('offline');
                 text.textContent = 'Erro de conexão';
             }
         }
 
+        function showError(message) {
+            const container = document.getElementById('errorContainer');
+            container.innerHTML = `
+                <div class="error-box">
+                    <strong>⚠️ Erro:</strong> ${message}<br>
+                    <small>Verifique se a URL do Apps Script está correta e se a implantação está ativa.</small>
+                </div>
+            `;
+        }
+
+        function clearError() {
+            document.getElementById('errorContainer').innerHTML = '';
+        }
+
         async function loadRequests() {
             const syncIcon = document.getElementById('syncIcon');
             syncIcon.classList.add('syncing');
+            document.getElementById('syncText').textContent = 'Carregando...';
             
             try {
+                clearError();
                 const result = await apiRequest('getAll');
                 
                 if (result.success) {
-                    allRequests = result.data;
+                    allRequests = result.data || [];
                     renderRequests();
                     updateStats();
                     updateStatus(true);
                     
-                    // Atualizar preview na tela de solicitante também
-                    document.getElementById('form-pending').textContent = 
-                        allRequests.filter(r => r.status === 'Pendente').length;
-                    document.getElementById('form-progress').textContent = 
-                        allRequests.filter(r => r.status === 'Em Andamento').length;
-                    document.getElementById('form-completed').textContent = 
-                        allRequests.filter(r => r.status === 'Concluído').length;
+                    // Atualizar preview na tela de solicitante
+                    updatePreviewStats();
+                } else {
+                    throw new Error(result.error || 'Erro desconhecido');
                 }
             } catch (error) {
-                showToast('Erro ao carregar dados da planilha');
+                showError('Não foi possível conectar ao Google Sheets. ' + error.message);
+                document.getElementById('requests-list').innerHTML = `
+                    <div class="empty-state">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
+                        <h3>Erro de conexão</h3>
+                        <p style="color: var(--text-light); margin: 1rem 0;">
+                            Verifique a configuração da API no código.
+                        </p>
+                        <button onclick="loadRequests()" class="btn btn-primary" style="width: auto;">
+                            🔄 Tentar Novamente
+                        </button>
+                    </div>
+                `;
             } finally {
                 syncIcon.classList.remove('syncing');
-                document.getElementById('syncText').textContent = 'Sincronizado';
+                document.getElementById('syncText').textContent = 'Atualizar';
             }
+        }
+
+        function updatePreviewStats() {
+            document.getElementById('form-pending').textContent = 
+                allRequests.filter(r => r.status === 'Pendente').length || '0';
+            document.getElementById('form-progress').textContent = 
+                allRequests.filter(r => r.status === 'Em Andamento').length || '0';
+            document.getElementById('form-completed').textContent = 
+                allRequests.filter(r => r.status === 'Concluído').length || '0';
         }
 
         function renderRequests() {
@@ -838,10 +915,8 @@
 
             const config = statusConfig[req.status] || statusConfig['Pendente'];
             
-            // Detectar urgência na observação ou tipo de operação
-            const isUrgent = req.observacao?.toLowerCase().includes('urgente') || 
-                           req.tipoOperacao?.toLowerCase().includes('urgente') ||
-                           req.observacao?.toLowerCase().includes('crítico');
+            const isUrgent = (req.observacao || '').toLowerCase().includes('urgente') || 
+                           (req.tipoOperacao || '').toLowerCase().includes('urgente');
 
             let actionBtn = '';
             if (req.status === 'Pendente') {
@@ -859,15 +934,15 @@
                         <span class="status-text">${config.text}</span>
                     </div>
                     <div class="card-info">
-                        <div class="card-header-row" style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
-                            <h3 class="card-title">${req.tipoOperacao}</h3>
+                        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                            <h3 class="card-title">${req.tipoOperacao || 'Operação'}</h3>
                             ${isUrgent ? '<span class="badge badge-urgent">URGENTE</span>' : ''}
                         </div>
                         <div class="card-meta">
-                            <div class="meta-item"><span>👤</span><strong>${req.solicitante}</strong> • ${req.area}</div>
+                            <div class="meta-item"><span>👤</span><strong>${req.solicitante || 'N/A'}</strong> • ${req.area || 'Sem área'}</div>
                             <div class="meta-item"><span>📦</span>Código: ${req.codigoItem || 'N/A'}</div>
                             <div class="meta-item"><span>📍</span>${req.localizacao || 'Local não informado'}</div>
-                            <div class="meta-item"><span>🕐</span>${req.carimbo}</div>
+                            <div class="meta-item"><span>🕐</span>${req.carimbo || ''}</div>
                             ${req.tempoAtendimento ? `<div class="meta-item"><span>⏱️</span>Previsto: ${req.tempoAtendimento}</div>` : ''}
                             ${req.observacao ? `<div class="meta-item" style="color: var(--accent); width: 100%;"><span>💬</span>${req.observacao}</div>` : ''}
                         </div>
@@ -881,51 +956,57 @@
 
         async function startTask(id) {
             try {
-                const result = await apiRequest('startTask', { action: 'startTask', id: id });
+                const result = await apiRequest('startTask', { id: id });
                 
                 if (result.success) {
-                    showToast('Operação iniciada!');
+                    showToast('✓ Operação iniciada!');
                     loadRequests();
+                } else {
+                    throw new Error(result.error);
                 }
             } catch (error) {
-                showToast('Erro ao iniciar tarefa');
+                showToast('✗ Erro ao iniciar: ' + error.message);
             }
         }
 
         async function completeTask(id) {
             clearInterval(timers[id]);
-            const finalTime = document.getElementById(`timer-${id}`).textContent;
+            const finalTime = document.getElementById(`timer-${id}`)?.textContent || '00:00';
             
             try {
-                const result = await apiRequest('completeTask', { 
-                    action: 'completeTask', 
-                    id: id,
-                    duracao: finalTime
-                });
+                const result = await apiRequest('completeTask', { id: id, duracao: finalTime });
                 
                 if (result.success) {
-                    showToast('Operação concluída!');
+                    showToast('✓ Operação concluída!');
                     loadRequests();
+                } else {
+                    throw new Error(result.error);
                 }
             } catch (error) {
-                showToast('Erro ao finalizar tarefa');
+                showToast('✗ Erro ao finalizar: ' + error.message);
             }
         }
 
         function startTimer(id, startTimeStr) {
-            // Parse do formato brasileiro: dd/MM/yyyy HH:mm:ss
-            const parts = startTimeStr.split(/[/ :]/);
-            const startTime = new Date(parts[2], parts[1]-1, parts[0], parts[3], parts[4], parts[5]).getTime();
-            
-            timers[id] = setInterval(() => {
-                const now = new Date().getTime();
-                const diff = Math.floor((now - startTime) / 1000);
-                const mins = Math.floor(diff / 60).toString().padStart(2, '0');
-                const secs = (diff % 60).toString().padStart(2, '0');
+            try {
+                // Parse do formato brasileiro: dd/MM/yyyy HH:mm:ss
+                const parts = startTimeStr.split(/[/ :]/);
+                if (parts.length < 6) return;
                 
-                const el = document.getElementById(`timer-${id}`);
-                if (el) el.textContent = `${mins}:${secs}`;
-            }, 1000);
+                const startTime = new Date(parts[2], parts[1]-1, parts[0], parts[3], parts[4], parts[5]).getTime();
+                
+                timers[id] = setInterval(() => {
+                    const now = new Date().getTime();
+                    const diff = Math.floor((now - startTime) / 1000);
+                    const mins = Math.floor(diff / 60).toString().padStart(2, '0');
+                    const secs = (diff % 60).toString().padStart(2, '0');
+                    
+                    const el = document.getElementById(`timer-${id}`);
+                    if (el) el.textContent = `${mins}:${secs}`;
+                }, 1000);
+            } catch (e) {
+                console.error('Erro no timer:', e);
+            }
         }
 
         function updateStats() {
@@ -946,6 +1027,11 @@
             renderRequests();
         }
 
+        function manualRefresh() {
+            loadRequests();
+            showToast('🔄 Atualizando...');
+        }
+
         function showToast(msg) {
             const existing = document.querySelector('.toast');
             if (existing) existing.remove();
@@ -958,18 +1044,23 @@
             setTimeout(() => toast.remove(), 3000);
         }
 
-        // Auto-refresh
+        // Auto-refresh quando a aba está visível
         setInterval(() => {
-            if (document.visibilityState === 'visible') {
+            if (currentView === 'operador' && document.visibilityState === 'visible' && isOnline) {
                 loadRequests();
             }
-        }, 15000); // Atualiza a cada 15 segundos
+        }, 30000); // A cada 30 segundos
 
         // Inicialização
         window.addEventListener('load', () => {
-            loadRequests();
+            // Verificar se a URL foi configurada
+            if (API_URL.includes('AKfycbzxxxxxxxx')) {
+                showError('⚠️ Você precisa configurar a URL do Apps Script no código (linha 425)');
+                updateStatus(false);
+            } else {
+                loadRequests();
+            }
         });
     </script>
 </body>
 </html>
-
