@@ -1,0 +1,1518 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FleetControl Pro | Sistema de Solicitações</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        :root {
+            --primary: #0f172a;
+            --secondary: #1e293b;
+            --accent: #f59e0b;
+            --accent-hover: #d97706;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --text: #334155;
+            --text-light: #94a3b8;
+            --border: #e2e8f0;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Background Animation */
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(to right, #e2e8f0 1px, transparent 1px),
+                linear-gradient(to bottom, #e2e8f0 1px, transparent 1px);
+            background-size: 40px 40px;
+            opacity: 0.4;
+            z-index: -1;
+            animation: gridMove 20s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(40px, 40px); }
+        }
+
+        /* Layout Principal */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: linear-gradient(180deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 2rem 1.5rem;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .brand-text h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+        }
+
+        .brand-text p {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            font-weight: 500;
+        }
+
+        .nav-section {
+            margin-bottom: 2rem;
+        }
+
+        .nav-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            opacity: 0.5;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.875rem 1rem;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            border: 1px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: rgba(255,255,255,0.05);
+            border-color: rgba(255,255,255,0.1);
+        }
+
+        .nav-item.active {
+            background: var(--accent);
+            color: var(--primary);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+        }
+
+        .nav-item .icon {
+            font-size: 1.25rem;
+        }
+
+        .user-profile {
+            position: absolute;
+            bottom: 2rem;
+            left: 1.5rem;
+            right: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: var(--accent);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .user-info {
+            flex: 1;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .user-role {
+            font-size: 0.75rem;
+            opacity: 0.6;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            animation: fadeInDown 0.5s ease-out;
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .page-title {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .page-subtitle {
+            color: var(--text-light);
+            margin-top: 0.25rem;
+        }
+
+        /* View Toggle (Mobile) */
+        .view-toggle {
+            display: none;
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 99;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 50%;
+            box-shadow: var(--shadow-lg);
+            cursor: pointer;
+            font-size: 1.5rem;
+            width: 60px;
+            height: 60px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Views */
+        .view {
+            display: none;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .view.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* === TELA DO SOLICITANTE === */
+        .form-container {
+            max-width: 800px;
+            background: var(--surface);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+        }
+
+        .form-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 2rem;
+        }
+
+        .form-header h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-header p {
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+
+        .form-body {
+            padding: 2rem;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .required::after {
+            content: '*';
+            color: var(--accent);
+        }
+
+        input, select, textarea {
+            padding: 0.875rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+            background: var(--bg);
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .priority-options {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .priority-option {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .priority-option input {
+            display: none;
+        }
+
+        .priority-label {
+            display: block;
+            padding: 1rem;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .priority-option input:checked + .priority-label {
+            border-color: var(--accent);
+            background: #fffbeb;
+            color: #b45309;
+        }
+
+        .priority-label:hover {
+            border-color: #cbd5e1;
+            transform: translateY(-2px);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 1.25rem;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(245, 158, 11, 0.4);
+        }
+
+        /* === TELA DO OPERADOR === */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            padding: 1.5rem;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-sm);
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent) 0%, var(--warning) 100%);
+            transform: scaleX(0);
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .stat-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        .bg-blue { background: #dbeafe; color: #1d4ed8; }
+        .bg-yellow { background: #fef3c7; color: #b45309; }
+        .bg-green { background: #d1fae5; color: #047857; }
+        .bg-red { background: #fee2e2; color: #991b1b; }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+            line-height: 1;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            background: var(--surface);
+            padding: 0.375rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            width: fit-content;
+        }
+
+        .tab {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: transparent;
+            color: var(--text-light);
+            font-weight: 500;
+            font-size: 0.875rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: var(--shadow);
+        }
+
+        .tab:hover:not(.active) {
+            color: var(--primary);
+            background: var(--bg);
+        }
+
+        .requests-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .request-card {
+            background: var(--surface);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            padding: 1.5rem;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 1.5rem;
+            align-items: center;
+            transition: all 0.4s;
+            position: relative;
+            overflow: hidden;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .request-card::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 4px;
+            background: var(--accent);
+            transform: scaleY(0);
+            transition: transform 0.3s;
+        }
+
+        .request-card:hover::after {
+            transform: scaleY(1);
+        }
+
+        .request-card:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateX(8px);
+        }
+
+        .request-card.in-progress {
+            background: linear-gradient(to right, #fffbeb 0%, #ffffff 100%);
+            border-color: #fbbf24;
+        }
+
+        .request-card.in-progress::after {
+            background: #fbbf24;
+            transform: scaleY(1);
+            animation: progressPulse 2s infinite;
+        }
+
+        @keyframes progressPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .request-card.completed {
+            opacity: 0.7;
+            background: #f0fdf4;
+            border-color: #86efac;
+        }
+
+        .request-card.completed::after {
+            background: #22c55e;
+            transform: scaleY(1);
+        }
+
+        .card-status {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: 80px;
+        }
+
+        .status-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .status-pending { background: #fff7ed; color: #ea580c; }
+        .status-progress { background: #fef3c7; color: #b45309; animation: spin 3s linear infinite; }
+        .status-done { background: #d1fae5; color: #059669; }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .status-text {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-light);
+        }
+
+        .card-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .card-header-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .operation-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .tag {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.025em;
+        }
+
+        .tag-urgent { background: #fee2e2; color: #991b1b; }
+        .tag-normal { background: #dbeafe; color: #1e40af; }
+        .tag-critica { background: #fecaca; color: #7f1d1d; border: 1px solid #f87171; }
+
+        .card-details {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+            font-size: 0.875rem;
+            color: var(--text-light);
+        }
+
+        .detail {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .detail strong {
+            color: var(--text);
+        }
+
+        .card-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            align-items: flex-end;
+            min-width: 160px;
+        }
+
+        .btn {
+            padding: 0.625rem 1.25rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.2);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.3);
+            background: #1e293b;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3);
+            background: #059669;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .timer {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            color: #b45309;
+            font-weight: 700;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: var(--surface);
+            border-radius: 16px;
+            border: 2px dashed var(--border);
+        }
+
+        .empty-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            animation: fadeIn 0.3s;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 3rem;
+            border-radius: 24px;
+            text-align: center;
+            max-width: 400px;
+            animation: scaleIn 0.3s;
+            box-shadow: var(--shadow-lg);
+        }
+
+        @keyframes scaleIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: var(--success);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            margin: 0 auto 1.5rem;
+            color: white;
+            animation: bounce 0.5s;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .ticket-number {
+            background: var(--bg);
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 1rem 0;
+            border: 2px dashed var(--border);
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--primary);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow-lg);
+            font-weight: 500;
+            z-index: 1001;
+            animation: slideInRight 0.3s ease-out;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .view-toggle {
+                display: flex;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .request-card {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .card-actions {
+                flex-direction: row;
+                width: 100%;
+            }
+
+            .btn {
+                flex: 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 1rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .card-details {
+                gap: 1rem;
+            }
+
+            .filter-tabs {
+                width: 100%;
+                overflow-x: auto;
+            }
+        }
+
+        /* Mobile Sidebar Overlay */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 99;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+    </style>
+<base target="_blank">
+</head>
+<body>
+    <div class="bg-grid"></div>
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="brand">
+                <div class="logo">⚡</div>
+                <div class="brand-text">
+                    <h1>FleetControl Pro</h1>
+                    <p>Gestão de Empilhadeiras</p>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-title">Menu Principal</div>
+                <div class="nav-item active" onclick="switchView('solicitante')" id="nav-solicitante">
+                    <span class="icon">📝</span>
+                    <span>Nova Solicitação</span>
+                </div>
+                <div class="nav-item" onclick="switchView('operador')" id="nav-operador">
+                    <span class="icon">⚙️</span>
+                    <span>Painel do Operador</span>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-title">Relatórios</div>
+                <div class="nav-item" onclick="exportData()">
+                    <span class="icon">📊</span>
+                    <span>Exportar Dados</span>
+                </div>
+                <div class="nav-item" onclick="clearCompleted()">
+                    <span class="icon">🗑️</span>
+                    <span>Limpar Concluídas</span>
+                </div>
+            </div>
+
+            <div class="user-profile">
+                <div class="user-avatar">OP</div>
+                <div class="user-info">
+                    <div class="user-name">Operador</div>
+                    <div class="user-role">Logística</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- View: Solicitante -->
+            <div class="view active" id="view-solicitante">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Nova Solicitação</h1>
+                        <p class="page-subtitle">Preencha o formulário para solicitar movimentação de materiais</p>
+                    </div>
+                </div>
+
+                <div class="form-container">
+                    <div class="form-header">
+                        <h2>📝 Formulário de Solicitação</h2>
+                        <p>Todos os campos marcados com * são obrigatórios</p>
+                    </div>
+                    
+                    <form class="form-body" id="solicitacaoForm">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="required">Nome do Solicitante</label>
+                                <input type="text" id="solicitante" required placeholder="Seu nome completo">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="required">Setor/Departamento</label>
+                                <select id="setor" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="Produção">Produção</option>
+                                    <option value="Logística">Logística</option>
+                                    <option value="Expedição">Expedição</option>
+                                    <option value="Almoxarifado">Almoxarifado</option>
+                                    <option value="Qualidade">Qualidade</option>
+                                    <option value="Manutenção">Manutenção</option>
+                                    <option value="Administrativo">Administrativo</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group full-width">
+                                <label class="required">Tipo de Operação</label>
+                                <input type="text" id="operacao" required placeholder="Ex: Baixar Material de Insumos, Descarregar Container...">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="required">Origem</label>
+                                <input type="text" id="origem" required placeholder="Ex: Doca 3, Pátio Central...">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="required">Destino</label>
+                                <input type="text" id="destino" required placeholder="Ex: Estoque A/12, Almoxarifado...">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Quantidade/Carga</label>
+                                <input type="text" id="quantidade" placeholder="Ex: 8 pallets, 15 caixas...">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Peso Aproximado</label>
+                                <input type="text" id="peso" placeholder="Ex: ~1.2t cada">
+                            </div>
+
+                            <div class="form-group full-width">
+                                <label>Observações Especiais</label>
+                                <textarea id="observacoes" placeholder="Informações adicionais: fragilidade, equipamentos especiais necessários, urgência, etc."></textarea>
+                            </div>
+
+                            <div class="form-group full-width">
+                                <label class="required">Prioridade</label>
+                                <div class="priority-options">
+                                    <div class="priority-option">
+                                        <input type="radio" name="prioridade" id="normal" value="normal" checked>
+                                        <label for="normal" class="priority-label">
+                                            <div>📋</div>
+                                            <div>Normal</div>
+                                        </label>
+                                    </div>
+                                    <div class="priority-option">
+                                        <input type="radio" name="prioridade" id="urgente" value="urgente">
+                                        <label for="urgente" class="priority-label">
+                                            <div>🔥</div>
+                                            <div>Urgente</div>
+                                        </label>
+                                    </div>
+                                    <div class="priority-option">
+                                        <input type="radio" name="prioridade" id="critica" value="critica">
+                                        <label for="critica" class="priority-label">
+                                            <div>🚨</div>
+                                            <div>Crítica</div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-submit">
+                            <span>🚀</span>
+                            Enviar Solicitação
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- View: Operador -->
+            <div class="view" id="view-operador">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Painel do Operador</h1>
+                        <p class="page-subtitle">Gerencie as solicitações de movimentação</p>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-primary" onclick="renderRequests()" style="width: auto;">
+                            <span>🔄</span> Atualizar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-icon bg-blue">📋</div>
+                        </div>
+                        <div class="stat-value" id="stat-pending">0</div>
+                        <div class="stat-label">Pendentes</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-icon bg-yellow">⏱️</div>
+                        </div>
+                        <div class="stat-value" id="stat-progress">0</div>
+                        <div class="stat-label">Em Andamento</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-icon bg-green">✓</div>
+                        </div>
+                        <div class="stat-value" id="stat-completed">0</div>
+                        <div class="stat-label">Concluídas</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-icon bg-red">🚨</div>
+                        </div>
+                        <div class="stat-value" id="stat-urgent">0</div>
+                        <div class="stat-label">Urgentes/Críticas</div>
+                    </div>
+                </div>
+
+                <div class="filter-tabs">
+                    <button class="tab active" onclick="filterTasks('all')">Todas</button>
+                    <button class="tab" onclick="filterTasks('pending')">Pendentes</button>
+                    <button class="tab" onclick="filterTasks('in-progress')">Andamento</button>
+                    <button class="tab" onclick="filterTasks('completed')">Concluídas</button>
+                </div>
+
+                <div class="requests-list" id="requests-list">
+                    <!-- Cards serão inseridos via JavaScript -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Mobile Toggle -->
+    <button class="view-toggle" onclick="toggleSidebar()">☰</button>
+
+    <!-- Modal Sucesso -->
+    <div class="modal-overlay" id="successModal">
+        <div class="modal-content">
+            <div class="success-icon">✓</div>
+            <h3>Solicitação Enviada!</h3>
+            <p>Sua solicitação foi registrada com sucesso.</p>
+            <div class="ticket-number" id="ticketNumber">#001</div>
+            <p style="font-size: 0.9rem; color: var(--text-light);">
+                O operador foi notificado e em breve iniciará a operação.
+            </p>
+            <button onclick="closeModal()" style="margin-top: 1.5rem; padding: 0.75rem 2rem; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                Nova Solicitação
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Estado global
+        const timers = {};
+        let currentFilter = 'all';
+        let currentView = 'solicitante';
+
+        // Utilitários
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
+        function formatDateTime() {
+            const now = new Date();
+            return now.toLocaleString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function getSolicitacoes() {
+            return JSON.parse(localStorage.getItem('fleet_solicitacoes') || '[]');
+        }
+
+        function saveSolicitacoes(solicitacoes) {
+            localStorage.setItem('fleet_solicitacoes', JSON.stringify(solicitacoes));
+        }
+
+        // Navegação
+        function switchView(view) {
+            currentView = view;
+            
+            // Atualizar navegação
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            document.getElementById(`nav-${view}`).classList.add('active');
+            
+            // Mostrar view correta
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(`view-${view}`).classList.add('active');
+            
+            // Fechar sidebar no mobile
+            if (window.innerWidth <= 1024) {
+                toggleSidebar();
+            }
+            
+            // Se for operador, renderizar lista
+            if (view === 'operador') {
+                renderRequests();
+            }
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.querySelector('.sidebar-overlay').classList.toggle('active');
+        }
+
+        // Formulário
+        document.getElementById('solicitacaoForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const solicitacoes = getSolicitacoes();
+            const novoId = solicitacoes.length > 0 ? Math.max(...solicitacoes.map(s => s.numero || 0)) + 1 : 1;
+            
+            const novaSolicitacao = {
+                id: generateId(),
+                numero: novoId,
+                solicitante: document.getElementById('solicitante').value,
+                setor: document.getElementById('setor').value,
+                operacao: document.getElementById('operacao').value,
+                origem: document.getElementById('origem').value,
+                destino: document.getElementById('destino').value,
+                quantidade: document.getElementById('quantidade').value || 'Não especificado',
+                peso: document.getElementById('peso').value || 'Não especificado',
+                observacoes: document.getElementById('observacoes').value || '',
+                prioridade: document.querySelector('input[name="prioridade"]:checked').value,
+                status: 'pending',
+                dataHora: formatDateTime(),
+                tempoInicio: null,
+                tempoFim: null,
+                duracao: null
+            };
+            
+            solicitacoes.push(novaSolicitacao);
+            saveSolicitacoes(solicitacoes);
+            
+            document.getElementById('ticketNumber').textContent = `#${String(novoId).padStart(3, '0')}`;
+            document.getElementById('successModal').classList.add('active');
+            
+            this.reset();
+        });
+
+        function closeModal() {
+            document.getElementById('successModal').classList.remove('active');
+        }
+
+        // Operador - Renderizar
+        function renderRequests() {
+            const solicitacoes = getSolicitacoes();
+            const container = document.getElementById('requests-list');
+            
+            // Ordenar: urgentes primeiro, depois por data
+            solicitacoes.sort((a, b) => {
+                const priorityOrder = { 'critica': 3, 'urgente': 2, 'normal': 1 };
+                if (priorityOrder[b.prioridade] !== priorityOrder[a.prioridade]) {
+                    return priorityOrder[b.prioridade] - priorityOrder[a.prioridade];
+                }
+                return new Date(b.dataHora) - new Date(a.dataHora);
+            });
+
+            const filtered = currentFilter === 'all' 
+                ? solicitacoes 
+                : solicitacoes.filter(s => s.status === currentFilter);
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📭</div>
+                        <h3>Nenhuma solicitação encontrada</h3>
+                        <p style="color: var(--text-light); margin-top: 0.5rem;">
+                            ${currentFilter === 'all' ? 'Aguardando novas solicitações...' : 'Nenhuma solicitação neste status.'}
+                        </p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = filtered.map(req => createRequestCard(req)).join('');
+                
+                // Restaurar timers
+                filtered.forEach(req => {
+                    if (req.status === 'in-progress' && req.tempoInicio) {
+                        startTimer(req.id);
+                    }
+                });
+            }
+
+            updateStats();
+        }
+
+        function createRequestCard(req) {
+            const statusConfig = {
+                'pending': { icon: '📥', text: 'Aguardando', class: 'status-pending' },
+                'in-progress': { icon: '⚙', text: 'Em Execução', class: 'status-progress' },
+                'completed': { icon: '✓', text: 'Concluído', class: 'status-done' }
+            };
+
+            const priorityTags = {
+                'normal': '<span class="tag tag-normal">NORMAL</span>',
+                'urgente': '<span class="tag tag-urgent">URGENTE</span>',
+                'critica': '<span class="tag tag-critica">CRÍTICA</span>'
+            };
+
+            const config = statusConfig[req.status];
+
+            let actionButton = '';
+            if (req.status === 'pending') {
+                actionButton = `<button class="btn btn-primary" onclick="startTask('${req.id}')"><span>▶</span> Iniciar</button>`;
+            } else if (req.status === 'in-progress') {
+                actionButton = `<button class="btn btn-success" onclick="completeTask('${req.id}')"><span class="timer" id="timer-${req.id}">00:00</span> ✓ Finalizar</button>`;
+            } else {
+                actionButton = `<button class="btn" disabled style="background: #6b7280; color: white;">✓ Finalizado (${req.duracao || '00:00'})</button>`;
+            }
+
+            return `
+                <div class="request-card ${req.status}" data-id="${req.id}" data-status="${req.status}">
+                    <div class="card-status">
+                        <div class="status-icon ${config.class}">${config.icon}</div>
+                        <span class="status-text">${config.text}</span>
+                    </div>
+                    
+                    <div class="card-info">
+                        <div class="card-header-row">
+                            <h3 class="operation-title">#${String(req.numero).padStart(3, '0')} - ${req.operacao}</h3>
+                            ${priorityTags[req.prioridade]}
+                        </div>
+                        <div class="card-details">
+                            <div class="detail">
+                                <span>👤</span>
+                                <strong>${req.solicitante}</strong> • ${req.setor}
+                            </div>
+                            <div class="detail">
+                                <span>📍</span>
+                                ${req.origem} → ${req.destino}
+                            </div>
+                            ${req.quantidade !== 'Não especificado' ? `
+                            <div class="detail">
+                                <span>📦</span>
+                                ${req.quantidade}
+                            </div>` : ''}
+                            ${req.peso !== 'Não especificado' ? `
+                            <div class="detail">
+                                <span>⚖️</span>
+                                ${req.peso}
+                            </div>` : ''}
+                            <div class="detail">
+                                <span>🕐</span>
+                                ${req.dataHora}
+                            </div>
+                            ${req.observacoes ? `
+                            <div class="detail" style="color: var(--accent); font-weight: 500;">
+                                <span>💬</span>
+                                ${req.observacoes}
+                            </div>` : ''}
+                        </div>
+                    </div>
+
+                    <div class="card-actions">
+                        ${actionButton}
+                    </div>
+                </div>
+            `;
+        }
+
+        function startTask(id) {
+            const solicitacoes = getSolicitacoes();
+            const index = solicitacoes.findIndex(s => s.id === id);
+            
+            if (index !== -1) {
+                solicitacoes[index].status = 'in-progress';
+                solicitacoes[index].tempoInicio = new Date().toISOString();
+                saveSolicitacoes(solicitacoes);
+                
+                renderRequests();
+                startTimer(id);
+                showToast('Operação iniciada com sucesso!');
+            }
+        }
+
+        function completeTask(id) {
+            const solicitacoes = getSolicitacoes();
+            const index = solicitacoes.findIndex(s => s.id === id);
+            
+            if (index !== -1) {
+                clearInterval(timers[id]);
+                const finalTime = document.getElementById(`timer-${id}`).textContent;
+                
+                solicitacoes[index].status = 'completed';
+                solicitacoes[index].tempoFim = new Date().toISOString();
+                solicitacoes[index].duracao = finalTime;
+                saveSolicitacoes(solicitacoes);
+                
+                renderRequests();
+                showToast(`Tarefa #${solicitacoes[index].numero} concluída em ${finalTime}!`);
+            }
+        }
+
+        function startTimer(id) {
+            const solicitacoes = getSolicitacoes();
+            const req = solicitacoes.find(s => s.id === id);
+            
+            if (!req || !req.tempoInicio) return;
+            
+            const startTime = new Date(req.tempoInicio).getTime();
+            
+            timers[id] = setInterval(() => {
+                const now = new Date().getTime();
+                const diff = Math.floor((now - startTime) / 1000);
+                const mins = Math.floor(diff / 60).toString().padStart(2, '0');
+                const secs = (diff % 60).toString().padStart(2, '0');
+                
+                const timerEl = document.getElementById(`timer-${id}`);
+                if (timerEl) timerEl.textContent = `${mins}:${secs}`;
+            }, 1000);
+        }
+
+        function updateStats() {
+            const solicitacoes = getSolicitacoes();
+            
+            const pending = solicitacoes.filter(s => s.status === 'pending').length;
+            const progress = solicitacoes.filter(s => s.status === 'in-progress').length;
+            const completed = solicitacoes.filter(s => s.status === 'completed').length;
+            const urgent = solicitacoes.filter(s => 
+                (s.prioridade === 'urgente' || s.prioridade === 'critica') && 
+                s.status !== 'completed'
+            ).length;
+
+            document.getElementById('stat-pending').textContent = pending;
+            document.getElementById('stat-progress').textContent = progress;
+            document.getElementById('stat-completed').textContent = completed;
+            document.getElementById('stat-urgent').textContent = urgent;
+        }
+
+        function filterTasks(type) {
+            currentFilter = type;
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            renderRequests();
+        }
+
+        function showToast(message) {
+            const existing = document.querySelector('.toast');
+            if (existing) existing.remove();
+            
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<span style="font-size: 1.25rem;">✓</span> ${message}`;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideInRight 0.3s ease-out reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function exportData() {
+            const solicitacoes = getSolicitacoes();
+            if (solicitacoes.length === 0) {
+                showToast('Nenhum dado para exportar!');
+                return;
+            }
+
+            let csv = 'Número;Solicitante;Setor;Operação;Origem;Destino;Prioridade;Status;Data/Hora;Duração\n';
+            
+            solicitacoes.forEach(s => {
+                csv += `${s.numero};${s.solicitante};${s.setor};${s.operacao};${s.origem};${s.destino};${s.prioridade};${s.status};${s.dataHora};${s.duracao || '-'}\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `fleetcontrol_relatorio_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+            
+            showToast('Relatório exportado com sucesso!');
+        }
+
+        function clearCompleted() {
+            const solicitacoes = getSolicitacoes();
+            const pendentes = solicitacoes.filter(s => s.status !== 'completed');
+            
+            if (pendentes.length === solicitacoes.length) {
+                showToast('Não há concluídas para limpar!');
+                return;
+            }
+            
+            if (confirm(`Deseja remover ${solicitacoes.length - pendentes.length} solicitações concluídas?`)) {
+                saveSolicitacoes(pendentes);
+                if (currentView === 'operador') {
+                    renderRequests();
+                }
+                showToast('Concluídas removidas!');
+            }
+        }
+
+        // Fechar modal ao clicar fora
+        document.getElementById('successModal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        // Atualização automática quando volta para operador
+        setInterval(() => {
+            if (currentView === 'operador') {
+                renderRequests();
+            }
+        }, 10000); // Atualiza a cada 10 segundos se estiver na view do operador
+
+        // Inicialização
+        window.addEventListener('load', () => {
+            // Verificar se há dados e já ir para operador se solicitado pela URL
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('view') === 'operador') {
+                switchView('operador');
+            }
+        });
+    </script>
+</body>
+</html>
