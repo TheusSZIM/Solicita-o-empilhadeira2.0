@@ -753,312 +753,412 @@
     <button class="view-toggle" onclick="toggleSidebar()">☰</button>
 
     <script>
-        // CONFIGURAÇÕES
-        const API_URL = 'https://script.google.com/macros/s/AKfycbyEfKaUUhCAx7k3UsauK8dRvDYQHqbjT4NKU7b9kJvgfrfSeBbVqR8BihdRw64hTmWo/exec';
+    // CONFIGURAÇÕES
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxHNxqRB4PgsBt_u0W8njbOBETWO5gr3o1C85TBGHHsvmLZ0ONngiM0jm_QkU2MtyZR/exec';
+    
+    let currentView = 'solicitante';
+    let currentFilter = 'all';
+    let allRequests = [];
+    let timers = {};
+    let isOnline = false;
+
+    // ✅ FUNÇÃO AUXILIAR PARA CONVERSÃO SEGURA PARA STRING
+    function safeString(value) {
+        return String(value || '');
+    }
+
+    function switchView(view) {
+        currentView = view;
+        document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+        document.getElementById(`nav-${view}`).classList.add('active');
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById(`view-${view}`).classList.add('active');
         
-        let currentView = 'solicitante';
-        let currentFilter = 'all';
-        let allRequests = [];
-        let timers = {};
-        let isOnline = false;
+        if (window.innerWidth <= 1024) toggleSidebar();
+        if (view === 'operador') loadRequests();
+    }
 
-        // ✅ FUNÇÃO AUXILIAR PARA CONVERSÃO SEGURA PARA STRING
-        function safeString(value) {
-            return String(value || '');
-        }
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('open');
+    }
 
-        function switchView(view) {
-            currentView = view;
-            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-            document.getElementById(`nav-${view}`).classList.add('active');
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.getElementById(`view-${view}`).classList.add('active');
+    // API com JSONP
+    function apiRequest(action, data = {}) {
+        return new Promise((resolve, reject) => {
+            const callbackName = 'cb_' + Date.now();
+            const script = document.createElement('script');
             
-            if (window.innerWidth <= 1024) toggleSidebar();
-            if (view === 'operador') loadRequests();
-        }
-
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('open');
-        }
-
-        // API com JSONP
-        function apiRequest(action, data = {}) {
-            return new Promise((resolve, reject) => {
-                const callbackName = 'cb_' + Date.now();
-                const script = document.createElement('script');
-                
-                const params = new URLSearchParams({
-                    action: action,
-                    callback: callbackName,
-                    ...data
-                });
-                
-                window[callbackName] = function(response) {
-                    delete window[callbackName];
-                    if (script.parentNode) document.head.removeChild(script);
-                    resolve(response);
-                };
-                
-                script.onerror = () => {
-                    delete window[callbackName];
-                    if (script.parentNode) document.head.removeChild(script);
-                    reject(new Error('Falha na requisição'));
-                };
-                
-                setTimeout(() => {
-                    if (window[callbackName]) {
-                        delete window[callbackName];
-                        if (script.parentNode) document.head.removeChild(script);
-                        reject(new Error('Timeout'));
-                    }
-                }, 10000);
-                
-                script.src = API_URL + '?' + params.toString();
-                document.head.appendChild(script);
+            const params = new URLSearchParams({
+                action: action,
+                callback: callbackName,
+                ...data
             });
-        }
-
-        function updateStatus(online) {
-            isOnline = online;
-            const dot = document.getElementById('statusDot');
-            const text = document.getElementById('statusText');
             
-            if (online) {
-                dot.classList.remove('offline');
-                text.textContent = 'Conectado';
-            } else {
-                dot.classList.add('offline');
-                text.textContent = 'Erro de conexão';
-            }
-        }
+            window[callbackName] = function(response) {
+                delete window[callbackName];
+                if (script.parentNode) document.head.removeChild(script);
+                resolve(response);
+            };
+            
+            script.onerror = () => {
+                delete window[callbackName];
+                if (script.parentNode) document.head.removeChild(script);
+                reject(new Error('Falha na requisição'));
+            };
+            
+            setTimeout(() => {
+                if (window[callbackName]) {
+                    delete window[callbackName];
+                    if (script.parentNode) document.head.removeChild(script);
+                    reject(new Error('Timeout'));
+                }
+            }, 10000);
+            
+            script.src = API_URL + '?' + params.toString();
+            document.head.appendChild(script);
+        });
+    }
 
-        function showError(message) {
-            const container = document.getElementById('errorContainer');
+    function updateStatus(online) {
+        isOnline = online;
+        const dot = document.getElementById('statusDot');
+        const text = document.getElementById('statusText');
+        
+        if (online) {
+            dot.classList.remove('offline');
+            text.textContent = 'Conectado';
+        } else {
+            dot.classList.add('offline');
+            text.textContent = 'Erro de conexão';
+        }
+    }
+
+    function showError(message) {
+        const container = document.getElementById('errorContainer');
+        container.innerHTML = `
+            <div class="error-box">
+                <strong>⚠️ Erro:</strong> ${message}
+            </div>
+        `;
+    }
+
+    function clearError() {
+        document.getElementById('errorContainer').innerHTML = '';
+    }
+
+    async function loadRequests() {
+        const syncIcon = document.getElementById('syncIcon');
+        syncIcon.classList.add('syncing');
+        document.getElementById('syncText').textContent = 'Carregando...';
+        
+        try {
+            clearError();
+            const result = await apiRequest('getAll');
+            
+            if (result.success) {
+                allRequests = result.data || [];
+                renderRequests();
+                updateStats();
+                updateStatus(true);
+                
+                // Atualizar preview na tela de solicitante
+                document.getElementById('form-pending').textContent = 
+                    allRequests.filter(r => r.status === 'Pendente').length || '0';
+                document.getElementById('form-progress').textContent = 
+                    allRequests.filter(r => r.status === 'Em Andamento').length || '0';
+                document.getElementById('form-completed').textContent = 
+                    allRequests.filter(r => r.status === 'Concluído').length || '0';
+            } else {
+                throw new Error(result.error || 'Erro desconhecido');
+            }
+        } catch (error) {
+            showError('Não foi possível conectar: ' + error.message);
+            updateStatus(false);
+        } finally {
+            syncIcon.classList.remove('syncing');
+            document.getElementById('syncText').textContent = 'Atualizar';
+        }
+    }
+
+    function renderRequests() {
+        const container = document.getElementById('requests-list');
+        
+        const filtered = currentFilter === 'all' 
+            ? allRequests 
+            : allRequests.filter(s => s.status === currentFilter);
+
+        if (filtered.length === 0) {
             container.innerHTML = `
-                <div class="error-box">
-                    <strong>⚠️ Erro:</strong> ${message}
+                <div class="empty-state">
+                    <div style="font-size: 4rem; margin-bottom: 1rem;">📭</div>
+                    <h3>Nenhuma solicitação encontrada</h3>
+                    <p style="color: var(--text-light); margin-top: 0.5rem;">
+                        As respostas do Google Forms aparecerão aqui automaticamente.
+                    </p>
                 </div>
             `;
+            return;
         }
 
-        function clearError() {
-            document.getElementById('errorContainer').innerHTML = '';
+        container.innerHTML = filtered.map(req => createCard(req)).join('');
+        
+        filtered.forEach(req => {
+            if (req.status === 'Em Andamento' && req.tempoInicio) {
+                startTimer(req.id, req.tempoInicio);
+            }
+        });
+    }
+
+    function createCard(req) {
+        const statusConfig = {
+            'Pendente': { icon: '⏳', text: 'Aguardando', class: 'status-pendente', cardClass: 'pendente' },
+            'Em Andamento': { icon: '⚙️', text: 'Em Execução', class: 'status-andamento', cardClass: 'em-andamento' },
+            'Concluído': { icon: '✓', text: 'Concluído', class: 'status-concluido', cardClass: 'concluido' }
+        };
+
+        const config = statusConfig[req.status] || statusConfig['Pendente'];
+        
+        const isUrgent = safeString(req.observacao).toLowerCase().includes('urgente') || 
+                       safeString(req.tipoOperacao).toLowerCase().includes('urgente');
+
+        let actionBtn = '';
+        if (req.status === 'Pendente') {
+            actionBtn = `<button class="btn btn-primary" onclick="startTask(${req.id})"><span>▶</span> Iniciar</button>`;
+        } else if (req.status === 'Em Andamento') {
+            actionBtn = `<button class="btn btn-success" onclick="completeTask(${req.id})"><span class="timer" id="timer-${req.id}">00:00</span> ✓ Finalizar</button>`;
+        } else {
+            actionBtn = `<button class="btn" disabled style="background: #6b7280; color: white;"><span>✓</span> ${req.duracao || 'Concluído'}</button>`;
         }
 
-        async function loadRequests() {
-            const syncIcon = document.getElementById('syncIcon');
-            syncIcon.classList.add('syncing');
-            document.getElementById('syncText').textContent = 'Carregando...';
+        return `
+            <div class="request-card ${config.cardClass}">
+                <div class="card-status">
+                    <div class="status-icon ${config.class}">${config.icon}</div>
+                    <span class="status-text">${config.text}</span>
+                </div>
+                <div class="card-info">
+                    <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                        <h3 class="card-title">${req.tipoOperacao || 'Operação'}</h3>
+                        ${isUrgent ? '<span class="badge badge-urgent">URGENTE</span>' : ''}
+                    </div>
+                    <div class="card-meta">
+                        <div class="meta-item"><span>👤</span><strong>${req.solicitante || 'N/A'}</strong> • ${req.area || 'Sem área'}</div>
+                        <div class="meta-item"><span>📦</span>Código: ${req.codigoItem || 'N/A'}</div>
+                        <div class="meta-item"><span>📍</span>${req.localizacao || 'Local não informado'}</div>
+                        <div class="meta-item"><span>🕐</span>${req.carimbo || ''}</div>
+                        ${req.tempoAtendimento ? `<div class="meta-item"><span>⏱️</span>Previsto: ${req.tempoAtendimento}</div>` : ''}
+                        ${req.observacao ? `<div class="meta-item" style="color: var(--accent); width: 100%;"><span>💬</span>${req.observacao}</div>` : ''}
+                    </div>
+                </div>
+                <div class="card-actions">
+                    ${actionBtn}
+                </div>
+            </div>
+        `;
+    }
+
+    // ✅ FUNÇÃO startTask OTIMIZADA - Feedback imediato
+    async function startTask(id) {
+        // Feedback visual INSTANTÂNEO
+        const btn = document.querySelector(`button[onclick="startTask(${id})"]`);
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span>⏳</span> Iniciando...';
+        }
+        
+        // Atualização otimista do card (sem esperar servidor)
+        optimisticUpdate(id, 'Em Andamento');
+        
+        try {
+            const result = await apiRequest('startTask', { id: id });
             
-            try {
-                clearError();
-                const result = await apiRequest('getAll');
-                
-                if (result.success) {
-                    allRequests = result.data || [];
-                    renderRequests();
-                    updateStats();
-                    updateStatus(true);
-                    
-                    // Atualizar preview na tela de solicitante
-                    document.getElementById('form-pending').textContent = 
-                        allRequests.filter(r => r.status === 'Pendente').length || '0';
-                    document.getElementById('form-progress').textContent = 
-                        allRequests.filter(r => r.status === 'Em Andamento').length || '0';
-                    document.getElementById('form-completed').textContent = 
-                        allRequests.filter(r => r.status === 'Concluído').length || '0';
-                } else {
-                    throw new Error(result.error || 'Erro desconhecido');
+            if (result.success) {
+                showToast('✓ Operação iniciada!');
+                // Atualizar com o tempo real do servidor
+                if (result.tempoInicio) {
+                    startTimer(id, result.tempoInicio);
                 }
-            } catch (error) {
-                showError('Não foi possível conectar: ' + error.message);
-                updateStatus(false);
-            } finally {
-                syncIcon.classList.remove('syncing');
-                document.getElementById('syncText').textContent = 'Atualizar';
+                // Recarregar em background após 1s
+                setTimeout(loadRequests, 1000);
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (error) {
+            showToast('✗ Erro: ' + error.message);
+            // Reverter em caso de erro
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<span>▶</span> Iniciar';
+            }
+            loadRequests(); // Recarregar para estado correto
+        }
+    }
+
+    // ✅ NOVA FUNÇÃO: Atualização otimista (instantânea)
+    function optimisticUpdate(id, newStatus) {
+        const card = document.querySelector(`.request-card:has(button[onclick="startTask(${id})"])`);
+        if (!card) return;
+        
+        // Atualizar classes visuais imediatamente
+        card.classList.remove('pendente', 'em-andamento', 'concluido');
+        card.classList.add('em-andamento');
+        
+        // Atualizar ícone e texto
+        const iconDiv = card.querySelector('.status-icon');
+        iconDiv.className = 'status-icon status-andamento';
+        iconDiv.innerHTML = '⚙️';
+        
+        card.querySelector('.status-text').textContent = 'Em Execução';
+        
+        // Atualizar botão
+        const btn = card.querySelector('.btn');
+        btn.className = 'btn btn-success';
+        btn.innerHTML = '<span class="timer" id="timer-' + id + '">00:00</span> ✓ Finalizar';
+        btn.setAttribute('onclick', `completeTask(${id})`);
+        btn.disabled = false;
+        
+        // Iniciar timer local imediatamente (com hora local)
+        startTimer(id, new Date().toISOString());
+    }
+
+    async function completeTask(id) {
+        clearInterval(timers[id]);
+        const finalTime = document.getElementById(`timer-${id}`)?.textContent || '00:00';
+        
+        // Feedback imediato
+        const btn = document.querySelector(`button[onclick="completeTask(${id})"]`);
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span>⏳</span> Finalizando...';
+        }
+        
+        try {
+            const result = await apiRequest('completeTask', { id: id, duracao: finalTime });
+            
+            if (result.success) {
+                showToast('✓ Operação concluída!');
+                loadRequests();
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (error) {
+            showToast('✗ Erro: ' + error.message);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<span class="timer" id="timer-${id}">${finalTime}</span> ✓ Finalizar`;
             }
         }
+    }
 
-        function renderRequests() {
-            const container = document.getElementById('requests-list');
+    // ✅ FUNÇÃO startTimer CORRIGIDA - Suporta ISO e múltiplos formatos
+    function startTimer(id, startTimeStr) {
+        try {
+            // Limpar timer anterior
+            if (timers[id]) {
+                clearInterval(timers[id]);
+            }
             
-            const filtered = currentFilter === 'all' 
-                ? allRequests 
-                : allRequests.filter(s => s.status === currentFilter);
-
-            if (filtered.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div style="font-size: 4rem; margin-bottom: 1rem;">📭</div>
-                        <h3>Nenhuma solicitação encontrada</h3>
-                        <p style="color: var(--text-light); margin-top: 0.5rem;">
-                            As respostas do Google Forms aparecerão aqui automaticamente.
-                        </p>
-                    </div>
-                `;
+            let startTime;
+            
+            // ✅ CORREÇÃO: Suportar formato ISO (2026-03-01T21:11:05.000Z)
+            if (startTimeStr.includes('T') || startTimeStr.includes('Z')) {
+                startTime = new Date(startTimeStr).getTime();
+            } 
+            // Formato brasileiro: dd/MM/yyyy HH:mm:ss
+            else if (startTimeStr.includes('/')) {
+                const parts = startTimeStr.split(/[/ :]/);
+                if (parts.length >= 6) {
+                    startTime = new Date(parts[2], parts[1]-1, parts[0], parts[3], parts[4], parts[5]).getTime();
+                }
+            } 
+            // Outros formatos
+            else {
+                startTime = new Date(startTimeStr).getTime();
+            }
+            
+            // Verificar se é válido
+            if (isNaN(startTime)) {
+                console.error('Data inválida:', startTimeStr);
+                const el = document.getElementById(`timer-${id}`);
+                if (el) el.textContent = '00:00';
                 return;
             }
-
-            container.innerHTML = filtered.map(req => createCard(req)).join('');
             
-            filtered.forEach(req => {
-                if (req.status === 'Em Andamento' && req.tempoInicio) {
-                    startTimer(req.id, req.tempoInicio);
-                }
-            });
-        }
-
-        function createCard(req) {
-            const statusConfig = {
-                'Pendente': { icon: '⏳', text: 'Aguardando', class: 'status-pendente', cardClass: 'pendente' },
-                'Em Andamento': { icon: '⚙️', text: 'Em Execução', class: 'status-andamento', cardClass: 'em-andamento' },
-                'Concluído': { icon: '✓', text: 'Concluído', class: 'status-concluido', cardClass: 'concluido' }
-            };
-
-            const config = statusConfig[req.status] || statusConfig['Pendente'];
+            // Atualizar imediatamente
+            updateTimerDisplay(id, startTime);
             
-            // ✅ CORREÇÃO: Usando safeString() para garantir conversão para string
-            const isUrgent = safeString(req.observacao).toLowerCase().includes('urgente') || 
-                           safeString(req.tipoOperacao).toLowerCase().includes('urgente');
-
-            let actionBtn = '';
-            if (req.status === 'Pendente') {
-                actionBtn = `<button class="btn btn-primary" onclick="startTask(${req.id})"><span>▶</span> Iniciar</button>`;
-            } else if (req.status === 'Em Andamento') {
-                actionBtn = `<button class="btn btn-success" onclick="completeTask(${req.id})"><span class="timer" id="timer-${req.id}">00:00</span> ✓ Finalizar</button>`;
-            } else {
-                actionBtn = `<button class="btn" disabled style="background: #6b7280; color: white;"><span>✓</span> ${req.duracao || 'Concluído'}</button>`;
-            }
-
-            return `
-                <div class="request-card ${config.cardClass}">
-                    <div class="card-status">
-                        <div class="status-icon ${config.class}">${config.icon}</div>
-                        <span class="status-text">${config.text}</span>
-                    </div>
-                    <div class="card-info">
-                        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
-                            <h3 class="card-title">${req.tipoOperacao || 'Operação'}</h3>
-                            ${isUrgent ? '<span class="badge badge-urgent">URGENTE</span>' : ''}
-                        </div>
-                        <div class="card-meta">
-                            <div class="meta-item"><span>👤</span><strong>${req.solicitante || 'N/A'}</strong> • ${req.area || 'Sem área'}</div>
-                            <div class="meta-item"><span>📦</span>Código: ${req.codigoItem || 'N/A'}</div>
-                            <div class="meta-item"><span>📍</span>${req.localizacao || 'Local não informado'}</div>
-                            <div class="meta-item"><span>🕐</span>${req.carimbo || ''}</div>
-                            ${req.tempoAtendimento ? `<div class="meta-item"><span>⏱️</span>Previsto: ${req.tempoAtendimento}</div>` : ''}
-                            ${req.observacao ? `<div class="meta-item" style="color: var(--accent); width: 100%;"><span>💬</span>${req.observacao}</div>` : ''}
-                        </div>
-                    </div>
-                    <div class="card-actions">
-                        ${actionBtn}
-                    </div>
-                </div>
-            `;
-        }
-
-        async function startTask(id) {
-            try {
-                const result = await apiRequest('startTask', { id: id });
-                
-                if (result.success) {
-                    showToast('✓ Operação iniciada!');
-                    loadRequests();
-                } else {
-                    throw new Error(result.error);
-                }
-            } catch (error) {
-                showToast('✗ Erro: ' + error.message);
-            }
-        }
-
-        async function completeTask(id) {
-            clearInterval(timers[id]);
-            const finalTime = document.getElementById(`timer-${id}`)?.textContent || '00:00';
+            // Atualizar a cada segundo
+            timers[id] = setInterval(() => {
+                updateTimerDisplay(id, startTime);
+            }, 1000);
             
-            try {
-                const result = await apiRequest('completeTask', { id: id, duracao: finalTime });
-                
-                if (result.success) {
-                    showToast('✓ Operação concluída!');
-                    loadRequests();
-                } else {
-                    throw new Error(result.error);
-                }
-            } catch (error) {
-                showToast('✗ Erro: ' + error.message);
-            }
+        } catch (e) {
+            console.error('Erro no timer:', e);
+            const el = document.getElementById(`timer-${id}`);
+            if (el) el.textContent = '00:00';
         }
+    }
 
-        function startTimer(id, startTimeStr) {
-            try {
-                const parts = startTimeStr.split(/[/ :]/);
-                if (parts.length < 6) return;
-                
-                const startTime = new Date(parts[2], parts[1]-1, parts[0], parts[3], parts[4], parts[5]).getTime();
-                
-                timers[id] = setInterval(() => {
-                    const now = new Date().getTime();
-                    const diff = Math.floor((now - startTime) / 1000);
-                    const mins = Math.floor(diff / 60).toString().padStart(2, '0');
-                    const secs = (diff % 60).toString().padStart(2, '0');
-                    
-                    const el = document.getElementById(`timer-${id}`);
-                    if (el) el.textContent = `${mins}:${secs}`;
-                }, 1000);
-            } catch (e) {
-                console.error('Erro no timer:', e);
-            }
+    function updateTimerDisplay(id, startTime) {
+        const now = new Date().getTime();
+        const diff = Math.floor((now - startTime) / 1000);
+        
+        const safeDiff = Math.max(0, diff);
+        const mins = Math.floor(safeDiff / 60).toString().padStart(2, '0');
+        const secs = (safeDiff % 60).toString().padStart(2, '0');
+        
+        const el = document.getElementById(`timer-${id}`);
+        if (el) {
+            el.textContent = `${mins}:${secs}`;
         }
+    }
 
-        function updateStats() {
-            const pending = allRequests.filter(r => r.status === 'Pendente').length;
-            const progress = allRequests.filter(r => r.status === 'Em Andamento').length;
-            const completed = allRequests.filter(r => r.status === 'Concluído').length;
-            
-            document.getElementById('stat-pending').textContent = pending;
-            document.getElementById('stat-progress').textContent = progress;
-            document.getElementById('stat-completed').textContent = completed;
-            document.getElementById('stat-total').textContent = allRequests.length;
-        }
+    function updateStats() {
+        const pending = allRequests.filter(r => r.status === 'Pendente').length;
+        const progress = allRequests.filter(r => r.status === 'Em Andamento').length;
+        const completed = allRequests.filter(r => r.status === 'Concluído').length;
+        
+        document.getElementById('stat-pending').textContent = pending;
+        document.getElementById('stat-progress').textContent = progress;
+        document.getElementById('stat-completed').textContent = completed;
+        document.getElementById('stat-total').textContent = allRequests.length;
+    }
 
-        function filterTasks(status) {
-            currentFilter = status;
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            event.target.classList.add('active');
-            renderRequests();
-        }
+    function filterTasks(status) {
+        currentFilter = status;
+        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+        event.target.classList.add('active');
+        renderRequests();
+    }
 
-        function manualRefresh() {
+    function manualRefresh() {
+        loadRequests();
+        showToast('🔄 Atualizando...');
+    }
+
+    function showToast(msg) {
+        const existing = document.querySelector('.toast');
+        if (existing) existing.remove();
+        
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.textContent = msg;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    // Auto-refresh
+    setInterval(() => {
+        if (currentView === 'operador' && document.visibilityState === 'visible' && isOnline) {
             loadRequests();
-            showToast('🔄 Atualizando...');
         }
+    }, 30000);
 
-        function showToast(msg) {
-            const existing = document.querySelector('.toast');
-            if (existing) existing.remove();
-            
-            const toast = document.createElement('div');
-            toast.className = 'toast';
-            toast.textContent = msg;
-            document.body.appendChild(toast);
-            
-            setTimeout(() => toast.remove(), 3000);
-        }
-
-        // Auto-refresh
-        setInterval(() => {
-            if (currentView === 'operador' && document.visibilityState === 'visible' && isOnline) {
-                loadRequests();
-            }
-        }, 30000);
-
-        // Inicialização
-        window.addEventListener('load', () => {
-            loadRequests();
-        });
-    </script>
+    // Inicialização
+    window.addEventListener('load', () => {
+        loadRequests();
+    });
+</script>
 </body>
 </html>
-
