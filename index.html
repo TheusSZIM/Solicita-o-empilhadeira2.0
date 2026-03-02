@@ -754,7 +754,7 @@
 
     <script>
     // CONFIGURAÇÕES
-    const API_URL = 'https://script.google.com/macros/s/AKfycbxHNxqRB4PgsBt_u0W8njbOBETWO5gr3o1C85TBGHHsvmLZ0ONngiM0jm_QkU2MtyZR/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbwdLznpfO5-Ae6KO1xozJcMNYO7ZQ6Fp94KKTsY7AmmCedKCl7UcL7c-7_AxeHvMMUm/exec';
     
     let currentView = 'solicitante';
     let currentFilter = 'all';
@@ -762,7 +762,6 @@
     let timers = {};
     let isOnline = false;
 
-    // ✅ FUNÇÃO AUXILIAR PARA CONVERSÃO SEGURA PARA STRING
     function safeString(value) {
         return String(value || '');
     }
@@ -782,7 +781,6 @@
         document.getElementById('sidebar').classList.toggle('open');
     }
 
-    // API com JSONP
     function apiRequest(action, data = {}) {
         return new Promise((resolve, reject) => {
             const callbackName = 'cb_' + Date.now();
@@ -861,7 +859,6 @@
                 updateStats();
                 updateStatus(true);
                 
-                // Atualizar preview na tela de solicitante
                 document.getElementById('form-pending').textContent = 
                     allRequests.filter(r => r.status === 'Pendente').length || '0';
                 document.getElementById('form-progress').textContent = 
@@ -957,16 +954,13 @@
         `;
     }
 
-    // ✅ FUNÇÃO startTask OTIMIZADA - Feedback imediato
     async function startTask(id) {
-        // Feedback visual INSTANTÂNEO
         const btn = document.querySelector(`button[onclick="startTask(${id})"]`);
         if (btn) {
             btn.disabled = true;
             btn.innerHTML = '<span>⏳</span> Iniciando...';
         }
         
-        // Atualização otimista do card (sem esperar servidor)
         optimisticUpdate(id, 'Em Andamento');
         
         try {
@@ -974,50 +968,42 @@
             
             if (result.success) {
                 showToast('✓ Operação iniciada!');
-                // Atualizar com o tempo real do servidor
                 if (result.tempoInicio) {
                     startTimer(id, result.tempoInicio);
                 }
-                // Recarregar em background após 1s
                 setTimeout(loadRequests, 1000);
             } else {
                 throw new Error(result.error);
             }
         } catch (error) {
             showToast('✗ Erro: ' + error.message);
-            // Reverter em caso de erro
             if (btn) {
                 btn.disabled = false;
                 btn.innerHTML = '<span>▶</span> Iniciar';
             }
-            loadRequests(); // Recarregar para estado correto
+            loadRequests();
         }
     }
 
-    // ✅ NOVA FUNÇÃO: Atualização otimista (instantânea)
     function optimisticUpdate(id, newStatus) {
         const card = document.querySelector(`.request-card:has(button[onclick="startTask(${id})"])`);
         if (!card) return;
         
-        // Atualizar classes visuais imediatamente
         card.classList.remove('pendente', 'em-andamento', 'concluido');
         card.classList.add('em-andamento');
         
-        // Atualizar ícone e texto
         const iconDiv = card.querySelector('.status-icon');
         iconDiv.className = 'status-icon status-andamento';
         iconDiv.innerHTML = '⚙️';
         
         card.querySelector('.status-text').textContent = 'Em Execução';
         
-        // Atualizar botão
         const btn = card.querySelector('.btn');
         btn.className = 'btn btn-success';
         btn.innerHTML = '<span class="timer" id="timer-' + id + '">00:00</span> ✓ Finalizar';
         btn.setAttribute('onclick', `completeTask(${id})`);
         btn.disabled = false;
         
-        // Iniciar timer local imediatamente (com hora local)
         startTimer(id, new Date().toISOString());
     }
 
@@ -1025,7 +1011,6 @@
         clearInterval(timers[id]);
         const finalTime = document.getElementById(`timer-${id}`)?.textContent || '00:00';
         
-        // Feedback imediato
         const btn = document.querySelector(`button[onclick="completeTask(${id})"]`);
         if (btn) {
             btn.disabled = true;
@@ -1050,33 +1035,25 @@
         }
     }
 
-    // ✅ FUNÇÃO startTimer CORRIGIDA - Suporta ISO e múltiplos formatos
     function startTimer(id, startTimeStr) {
         try {
-            // Limpar timer anterior
             if (timers[id]) {
                 clearInterval(timers[id]);
             }
             
             let startTime;
             
-            // ✅ CORREÇÃO: Suportar formato ISO (2026-03-01T21:11:05.000Z)
             if (startTimeStr.includes('T') || startTimeStr.includes('Z')) {
                 startTime = new Date(startTimeStr).getTime();
-            } 
-            // Formato brasileiro: dd/MM/yyyy HH:mm:ss
-            else if (startTimeStr.includes('/')) {
+            } else if (startTimeStr.includes('/')) {
                 const parts = startTimeStr.split(/[/ :]/);
                 if (parts.length >= 6) {
                     startTime = new Date(parts[2], parts[1]-1, parts[0], parts[3], parts[4], parts[5]).getTime();
                 }
-            } 
-            // Outros formatos
-            else {
+            } else {
                 startTime = new Date(startTimeStr).getTime();
             }
             
-            // Verificar se é válido
             if (isNaN(startTime)) {
                 console.error('Data inválida:', startTimeStr);
                 const el = document.getElementById(`timer-${id}`);
@@ -1084,10 +1061,8 @@
                 return;
             }
             
-            // Atualizar imediatamente
             updateTimerDisplay(id, startTime);
             
-            // Atualizar a cada segundo
             timers[id] = setInterval(() => {
                 updateTimerDisplay(id, startTime);
             }, 1000);
@@ -1148,17 +1123,16 @@
         setTimeout(() => toast.remove(), 3000);
     }
 
-    // Auto-refresh
     setInterval(() => {
         if (currentView === 'operador' && document.visibilityState === 'visible' && isOnline) {
             loadRequests();
         }
     }, 30000);
 
-    // Inicialização
     window.addEventListener('load', () => {
         loadRequests();
     });
 </script>
 </body>
 </html>
+
